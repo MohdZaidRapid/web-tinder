@@ -16,7 +16,7 @@ app.post("/signup", async (req, res) => {
     res.status(201).send("User Added successfully");
   } catch (error) {
     console.error(error);
-    res.status(500).send("An error occurred");
+    res.status(500).send(error.message);
   }
 });
 
@@ -49,6 +49,50 @@ app.get("/feed", async (req, res, next) => {
     res.send(users);
   } catch (err) {
     res.status(400).send("Something went wrong");
+  }
+});
+// delete user
+app.delete("/user", async (req, res) => {
+  const userId = req.body.userId;
+  try {
+    const user = await User.findByIdAndDelete(userId);
+
+    res.send("user deleted successfully");
+  } catch (err) {
+    res.status(400).send("Something went wrong ");
+  }
+});
+
+app.patch("/user/:userId", async (req, res) => {
+  const data = req.body;
+  const userId = req.params?.userId;
+
+  try {
+    const ALLOWED_UPDATES = ["photoUrl", "about", "gender", "age", "skills"];
+
+    //   {
+    //     "firstName": "rahul",
+    //      "emailId": "zaid2@gmail.com",
+    //      "password": "rahul@123",
+    //      "gender":"male"
+    // }
+    const isUpdateAllowed = Object.keys(data).every((k) =>
+      ALLOWED_UPDATES.includes(k)
+    );
+    if (!isUpdateAllowed) {
+      throw new Error("Update not allowed");
+    }
+    const user = await User.findByIdAndUpdate({ _id: userId }, data, {
+      returnDocument: "after",
+      runValidators: true,
+    });
+    if (data?.skills.length > 10) {
+      throw new Error("Skills cannot be more than 10");
+    }
+    // console.log(user);
+    res.send("User updated successfully");
+  } catch (err) {
+    res.status(400).send("UPDATE FAILED: " + err.message);
   }
 });
 
