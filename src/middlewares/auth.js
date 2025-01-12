@@ -1,6 +1,5 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
-const bcrypt = require("bcrypt");
 
 const userAuth = async (req, res, next) => {
   // Read the token form the request cookies

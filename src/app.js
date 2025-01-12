@@ -45,7 +45,7 @@ app.post("/login", async (req, res) => {
       throw new Error("Invalid Credentials");
     }
 
-    const isPasswordValid = await user.validatePassword(password)
+    const isPasswordValid = await user.validatePassword(password);
 
     if (isPasswordValid) {
       // Create a JWT Token
@@ -156,6 +156,7 @@ app.post("/sendConnectionRequest", userAuth, async (req, res) => {
   console.log("Sending a connection request");
   res.send(user.firstName + " sent the connection request");
 });
+
 
 connectDB()
   .then(() => {
