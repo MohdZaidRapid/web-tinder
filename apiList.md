@@ -12,9 +12,10 @@ profileRouter
 
 connectionRequestRouter
 - POST /request/send/:status/:userId
+- - POST/request/review/:status/:requestId
 <!-- - POST /request/send/ignored/:userId -->
 - POST/request/review/accepted/:requestId
-- POST/request/review/rejected/:requestId
+- POST /request/review/rejected/:requestId
 
 
 - GET /user/connections
