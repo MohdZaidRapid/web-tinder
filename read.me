@@ -15,12 +15,27 @@ never trust req.body
 
 
 
+Frontend= http://35.172.185.152/
+Backend = http://35.172.185.152:7777/
+
+Domain name = devtinder.com => 35.172.185.152
+
+Frontend = devtinder.com 
+Backend = devtinder.com:7777=> devTinder.com/api
 
 
 
 
 
 
+<!-- nginx config -->
 
-
-
+location /api {
+        proxy_pass http://127.0.0.1:7777; # Forward to your Node.js app
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+restart nginx
