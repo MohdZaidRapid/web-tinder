@@ -32,7 +32,7 @@ chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
     if (!connectionExists) {
       return res
         .status(401)
-        .json({ message: "Connction does not exists", status: 401 });
+        .json({ message: "Connection does not exists", status: 401 });
     }
     let chat = await Chat.findOne({
       participants: { $all: [userId, targetUserId] },
