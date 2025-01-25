@@ -3,10 +3,12 @@ const requestRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequestModel = require("../models/connectionRequest");
 const User = require("../models/user");
+const isUserBlocked = require("../middlewares/checkblokingStatus");
 
 requestRouter.post(
   "/request/sent/:status/:toUserId",
   userAuth,
+  isUserBlocked,
   async (req, res) => {
     try {
       const fromUserId = req.user._id;

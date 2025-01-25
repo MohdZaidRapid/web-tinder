@@ -67,6 +67,22 @@ blockUserRouter.post(
         ],
       });
 
+      const interestedConnection =
+        await ConnectionRequestModel.findOneAndDelete({
+          $or: [
+            {
+              fromUserId: user._id,
+              toUserId: blockUserId,
+              status: "interested",
+            },
+            {
+              fromUserId: blockUserId,
+              toUserId: user._id,
+              status: "interested",
+            },
+          ],
+        });
+
       // Update the `blockedBy` and `blockedTo` arrays in the User model
       await User.findByIdAndUpdate(
         user._id,
