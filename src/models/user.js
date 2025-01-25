@@ -81,6 +81,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "This is a default value of user",
     },
+    blockedBy: [
+      {
+        type: mongoose.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    blockedTo: [
+      {
+        type: mongoose.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
