@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const express = require("express");
 const BlockUserModel = require("../models/blockUser");
 const User = require("../models/user");
@@ -5,6 +6,77 @@ const { userAuth } = require("../middlewares/auth");
 const ConnectionRequestModel = require("../models/connectionRequest");
 
 const blockUserRouter = express.Router();
+
+// get all blocked user for current user
+blockUserRouter.get("/block/blocked", userAuth, async (req, res) => {
+  try {
+    const user = req.user; // Authenticated user
+
+    // MongoDB aggregation pipeline
+    const blockedUsers = await BlockUserModel.aggregate([
+      {
+        $match: {
+          blockedBy: user._id, // Filter by the current user's ID
+        },
+      },
+      {
+        $lookup: {
+          from: "users", // Join with the User collection
+          localField: "blockedTo", // Field in BlockUserModel
+          foreignField: "_id", // Matching field in User model
+          as: "userDetails", // Result array
+          pipeline: [
+            {
+              $project: {
+                firstName: 1,
+                lastName: 1,
+                emailId: 1,
+                photoUrl: 1,
+                skills: 1,
+                isPremium: 1,
+                gender: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $unwind: "$userDetails", // Deconstruct the userDetails array
+      },
+      {
+        $addFields: {
+          mergedDetails: {
+            $mergeObjects: [
+              "$userDetails", // Fields from the User collection
+              {
+                status: "$status", // Add status from BlockUserModel
+                blockedAt: "$createdAt", // Add blockedAt timestamp
+              },
+            ],
+          },
+        },
+      },
+      {
+        $replaceRoot: {
+          newRoot: "$mergedDetails", // Replace the root with merged details
+        },
+      },
+    ]);
+
+    // Respond with merged data
+    return res.status(200).json({
+      message: "Blocked users fetched successfully.",
+      totalBlockedUsers: blockedUsers.length,
+      blockedUsers, // Merged data
+    });
+  } catch (error) {
+    console.error("Error while fetching blocked users:", error);
+    res.status(500).json({
+      message: "An error occurred while fetching blocked users.",
+      error: error.message,
+    });
+  }
+});
 
 blockUserRouter.post(
   "/block/:blockUserId",
@@ -55,7 +127,7 @@ blockUserRouter.post(
 
       if (alreadyInBlockedByArray) {
         return res.status(400).json({
-          message: "This user is already in your blocked list.",
+          message: "This user is already blocked you.",
         });
       }
 
@@ -115,6 +187,95 @@ blockUserRouter.post(
       res.status(500).json({
         message:
           "An error occurred while blocking the user. Please try again later.",
+        error: error.message,
+      });
+    }
+  }
+);
+
+blockUserRouter.post(
+  "/unBlock/:unBlockUserId",
+  userAuth,
+  async (req, res, next) => {
+    try {
+      const loggedInUser = req.user;
+      const unBlockUserId = req.params.unBlockUserId;
+
+      // Validate the unBlockUserId
+      if (!mongoose.Types.ObjectId.isValid(unBlockUserId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      // Check if the user to be unblocked exists
+      const findBlockedUser = await User.findById(unBlockUserId);
+      if (!findBlockedUser) {
+        return res
+          .status(404)
+          .json({ message: "User you are trying to unblock does not exist" });
+      }
+
+      // Check if the blocking relationship exists
+      const findBlockUser = await BlockUserModel.findOne({
+        $or: [
+          {
+            blockedBy: loggedInUser._id,
+            blockedTo: unBlockUserId,
+            status: "blocked",
+          },
+          {
+            blockedBy: unBlockUserId,
+            blockedTo: loggedInUser._id,
+            status: "blocked",
+          },
+        ],
+      });
+
+      if (!findBlockUser) {
+        return res
+          .status(400)
+          .json({ message: "This user is already unblocked by you" });
+      }
+
+      // Check if the unblocked user has blocked the current user
+      const findIfUserBlockedUs = await BlockUserModel.findOne({
+        blockedBy: unBlockUserId,
+        blockedTo: loggedInUser._id,
+        status: "blocked",
+      });
+
+      if (findIfUserBlockedUs) {
+        return res.status(403).json({
+          message: "You cannot unblock this user because they blocked you",
+        });
+      }
+
+      // Update the `blockedTo` and `blockedBy` arrays in the User model
+      await User.findByIdAndUpdate(
+        loggedInUser._id,
+        { $pull: { blockedTo: unBlockUserId } }, // Remove from `blockedTo`
+        { new: true }
+      );
+
+      await User.findByIdAndUpdate(
+        unBlockUserId,
+        { $pull: { blockedBy: loggedInUser._id } }, // Remove from `blockedBy`
+        { new: true }
+      );
+
+      // Remove the block entry from the BlockUserModel
+      await BlockUserModel.findOneAndDelete({
+        blockedBy: loggedInUser._id,
+        blockedTo: unBlockUserId,
+      });
+
+      // Send a success response
+      return res.status(200).json({
+        message: "User has been successfully unblocked.",
+      });
+    } catch (error) {
+      console.error("Error while unblocking user:", error);
+      res.status(500).json({
+        message: "An error occurred while unblocking the user.",
         error: error.message,
       });
     }
