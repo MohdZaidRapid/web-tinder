@@ -93,7 +93,18 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    role: {
+      type: String,
+      enum: ["admin", "user"],
+      default: "user",
+    },
+    isDeactivated: {
+      type: Boolean,
+      enum: [false, true],
+      default: false,
+    },
   },
+
   { timestamps: true }
 );
 

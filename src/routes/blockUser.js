@@ -160,13 +160,13 @@ blockUserRouter.post(
         user._id,
         { $addToSet: { blockedTo: blockUserId } }, // Add to `blockedTo` array if not already present
         { new: true }
-      );
+      ).lean();
 
       await User.findByIdAndUpdate(
         blockUserId,
         { $addToSet: { blockedBy: user._id } }, // Add to `blockedBy` array if not already present
         { new: true }
-      );
+      ).lean();
 
       // Create a new block entry in the BlockUserModel
       const newBlockEntry = new BlockUserModel({

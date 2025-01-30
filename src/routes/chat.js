@@ -2,18 +2,44 @@ const express = require("express");
 const { Chat } = require("../models/chat");
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequestModel = require("../models/connectionRequest");
+const User = require("../models/user");
+const BlockUser = require("../models/blockUser");
 
 const chatRouter = express.Router();
 
 chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
-  const { targetUserId } = req.params;
-  // console.log(targetUserId);
-
-  const userId = req.user._id;
-  console.log(userId.toString());
-  console.log(targetUserId.toString());
-
   try {
+    const { targetUserId } = req.params;
+    const userId = req.user._id;
+    console.log("userId", userId);
+    console.log("targetUserId", targetUserId);
+
+    const user = await User.findOne({ _id: targetUserId });
+    if (!user) {
+      return res.status(404).json({ message: "No user found" });
+    }
+
+    const blockedUser = await User.findOne({
+      _id: targetUserId,
+      isDeactivated: true,
+    });
+    if (blockedUser) {
+      return res.status(403).json({ message: "User is deactivated by admin" });
+    }
+
+    const isBlocked = await BlockUser.findOne({
+      $or: [
+        { blockedTo: targetUserId, blockedBy: userId },
+        { blockedBy: targetUserId, blockedTo: userId },
+      ],
+    });
+
+    if (isBlocked) {
+      return res
+        .status(403)
+        .json({ message: "User is blocked or you blocked the user" });
+    }
+
     let connectionExists = await ConnectionRequestModel.findOne({
       $or: [
         {
@@ -32,8 +58,9 @@ chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
     if (!connectionExists) {
       return res
         .status(401)
-        .json({ message: "Connection does not exists", status: 401 });
+        .json({ message: "Connection does not exist", status: 401 });
     }
+
     let chat = await Chat.findOne({
       participants: { $all: [userId, targetUserId] },
     }).populate({
@@ -48,9 +75,10 @@ chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
       });
       await chat.save();
     }
+
     res.json(chat);
   } catch (err) {
-    console.log(err);
+    res.status(500).json({ message: err.message });
   }
 });
 

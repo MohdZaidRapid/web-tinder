@@ -3,8 +3,9 @@ const userRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connectionRequest");
 const User = require("../models/user");
+const BlockUserModel = require("../models/blockUser");
 
-const USER_SAVE = "firstName lastName photoUrl age gender about skills";
+const USER_SAVE = "firstName lastName photoUrl age gender about skills role";
 // Get all the pending connection request for the loggedIn user
 userRouter.get("/user/requests/received", userAuth, async (req, res) => {
   try {
@@ -83,15 +84,23 @@ userRouter.get("/feed", userAuth, async (req, res) => {
       hidesUserFromFeed.add(req.toUserId.toString());
     });
 
+    const blockUsers = await BlockUserModel.find({
+      $or: [{ blockedBy: req.user._id }, { blockedTo: req.user._id }],
+    }).select("blockedBy blockedTo");
+
+    blockUsers.forEach((req) => {
+      hidesUserFromFeed.add(req.blockedBy);
+      hidesUserFromFeed.add(req.blockedTo);
+    });
     const users = await User.find({
+      isDeactivated: false,
       $and: [
         { _id: { $nin: Array.from(hidesUserFromFeed) } },
         { _id: { $ne: loggedInUser._id } },
       ],
-    })
-      .select(USER_SAVE)
-      .skip(skip)
-      .limit(limit);
+    }).select(USER_SAVE);
+    // .skip(skip)
+    // .limit(limit);
     // console.log(hidesUserFromFeed);
     // [A,B,F,G,H] ->A
     // [A,B,C,D,E,F]

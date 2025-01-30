@@ -43,6 +43,10 @@ authRouter.post("/login", async (req, res) => {
       throw new Error("Invalid Credentials");
     }
 
+    if (user && user.isDeactivated === true) {
+      throw new Error("User is deactivated please contact admin!!!");
+    }
+
     const isPasswordValid = await user.validatePassword(password);
 
     if (isPasswordValid) {
