@@ -86,32 +86,27 @@ adminRouter.get("/admin/get", userAuth, adminRole, async (req, res) => {
 });
 
 // Get a specific user by ID
-adminRouter.get(
-  "/admin/get/:userId",
-  userAuth,
-  adminRole,
-  async (req, res) => {
-    try {
-      const userId = req.params.userId;
+adminRouter.get("/admin/get/:userId", userAuth, adminRole, async (req, res) => {
+  try {
+    const userId = req.params.userId;
 
-      if (!mongoose.isValidObjectId(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
-
-      const user = await User.findById(userId).select(
-        "firstName lastName isPremium gender role age photoUrl skills emailId"
-      );
-
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      return res.status(200).json({ user });
-    } catch (error) {
-      return res.status(500).json({ message: error.message });
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
     }
+
+    const user = await User.findById(userId).select(
+      "firstName lastName isPremium gender role age photoUrl skills emailId"
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
-);
+});
 
 // Delete a user by ID
 adminRouter.delete(

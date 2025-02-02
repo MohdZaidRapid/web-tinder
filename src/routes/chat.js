@@ -11,8 +11,8 @@ chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
   try {
     const { targetUserId } = req.params;
     const userId = req.user._id;
-    console.log("userId", userId);
-    console.log("targetUserId", targetUserId);
+    // console.log("userId", userId);
+    // console.log("targetUserId", targetUserId);
 
     const user = await User.findOne({ _id: targetUserId });
     if (!user) {
@@ -25,6 +25,13 @@ chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
     });
     if (blockedUser) {
       return res.status(403).json({ message: "User is deactivated by admin" });
+    }
+    const blockedMeUser = await User.findOne({
+      _id: userId,
+      isDeactivated: true,
+    });
+    if (blockedMeUser) {
+      return res.status(403).json({ message: "You are deactivated by admin" });
     }
 
     const isBlocked = await BlockUser.findOne({
