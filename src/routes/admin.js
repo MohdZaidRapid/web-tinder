@@ -29,7 +29,9 @@ adminRouter.post(
         return res.status(403).json({ message: "Cannot block an admin" });
       }
 
-      await User.findByIdAndUpdate(userId, { $set: { isDeactivated: true } });
+      await User.findByIdAndUpdate(userId, {
+        $set: { isDeactivated: true, deactivatedAt: new Date() },
+      });
 
       return res.status(200).json({ message: "User blocked successfully" });
     } catch (error) {
@@ -61,7 +63,9 @@ adminRouter.post(
         return res.status(403).json({ message: "Cannot unblock an admin" });
       }
 
-      await User.findByIdAndUpdate(userId, { $set: { isDeactivated: false } });
+      await User.findByIdAndUpdate(userId, {
+        $set: { isDeactivated: false, deactivatedAt: null },
+      });
 
       return res.status(200).json({ message: "User unblocked successfully" });
     } catch (error) {

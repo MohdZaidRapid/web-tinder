@@ -103,6 +103,10 @@ const userSchema = new mongoose.Schema(
       enum: [false, true],
       default: false,
     },
+    deactivatedAt: {
+      type: Date,
+    },
+    token: { type: String, default: null }, // Store token
   },
 
   { timestamps: true }
@@ -116,6 +120,9 @@ userSchema.methods.getJWT = async function () {
   const token = await jwt.sign({ _id: user._id }, "DEV@Tinder$790", {
     expiresIn: "7d",
   });
+
+  user.token = token; // Save the token in the user's document
+  await user.save();
 
   return token;
 };

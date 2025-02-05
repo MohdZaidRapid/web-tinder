@@ -2,28 +2,32 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 
 const userAuth = async (req, res, next) => {
-  // Read the token form the request cookies
-
   try {
-    const { token } = req.cookies;
+    const token = req.cookies.token;
 
     if (!token) {
-      // throw new Error("Token is not valid!!!!!!!!!!!!!!!!!");
-      return res.status(401).send("Please login");
+      return res.status(401).json({ message: "Authentication token missing." });
     }
 
-    const decodedDataObj = await jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded._id);
 
-    const { _id } = decodedDataObj;
-
-    const user = await User.findById(_id);
     if (!user) {
-      throw new Error("User not found");
+      return res.status(401).json({ message: "User not found." });
     }
-    req.user = user;
+
+    if (user.token !== token) {
+      return res.status(401).json({ message: "Session expired. Please log in again." });
+    }
+
+    if (user.isDeactivated) {
+      return res.status(403).json({ message: "Account is deactivated. Contact support." });
+    }
+
+    req.user = user; // Attach user to request
     next();
   } catch (err) {
-    res.status(400).send("ERROR: " + err.message);
+    res.status(401).json({ message: "Invalid token. Please log in again." });
   }
 };
 

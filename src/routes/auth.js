@@ -1,12 +1,14 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 const { validateSignupData } = require("../utils/validation");
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
+const { userAuth } = require("../middlewares/auth");
 
 const authRouter = express.Router();
 
+// Signup Route
 authRouter.post("/signup", async (req, res) => {
-  // Validation of data
   const { firstName, lastName, emailId, password } = req.body;
   try {
     validateSignupData(req);
@@ -22,57 +24,100 @@ authRouter.post("/signup", async (req, res) => {
     const savedUser = await user.save();
     const token = await savedUser.getJWT();
 
-    // Add the token to cookie and send the response back to the user
     res.cookie("token", token, {
       expires: new Date(Date.now() + 8 * 3600000),
+      httpOnly: true,
     });
+
     res
       .status(201)
-      .json({ message: "User Added successfully", data: savedUser });
+      .json({ message: "User added successfully", data: savedUser });
   } catch (error) {
-    res.status(500).send("ERROR :" + error.message);
+    res.status(500).send("ERROR: " + error.message);
   }
 });
 
+// Login Route
 authRouter.post("/login", async (req, res) => {
   try {
     const { emailId, password } = req.body;
+    const user = await User.findOne({ emailId });
 
-    const user = await User.findOne({ emailId: emailId });
     if (!user) {
-      throw new Error("Invalid Credentials");
+      throw new Error("Invalid credentials");
     }
 
-    if (user && user.isDeactivated === true) {
-      throw new Error("User is deactivated please contact admin!!!");
+    if (user.isDeactivated) {
+      throw new Error("User is deactivated. Please contact admin.");
     }
 
     const isPasswordValid = await user.validatePassword(password);
 
     if (isPasswordValid) {
-      // Create a JWT Token
       const token = await user.getJWT();
 
-      // Add the token to cookie and send the response back to the user
       res.cookie("token", token, {
         expires: new Date(Date.now() + 8 * 3600000),
+        httpOnly: true,
       });
 
-      res.json({ message: "Login Successfull!!!", user });
+      res.json({ message: "Login successful!", user });
     } else {
-      throw new Error("Invalid Credentials");
+      throw new Error("Invalid credentials");
     }
   } catch (err) {
     res.status(400).send(err.message);
   }
 });
 
+// Logout Route
 authRouter.post("/logout", async (req, res) => {
-  res
-    .cookie("token", null, {
-      expires: new Date(Date.now()),
-    })
-    .send("Logged out successfully");
+  try {
+    const token = req.cookies.token;
+    if (!token) return res.status(400).send("No active session found");
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded._id);
+
+    if (user) {
+      user.token = null;
+      await user.save();
+    }
+
+    res.clearCookie("token").send("Logged out successfully");
+  } catch (err) {
+    res.status(400).send("Error logging out");
+  }
+});
+
+// Check Authentication Route
+// const jwt = require("jsonwebtoken");
+// const User = require("../models/user");
+
+authRouter.get("/check-auth", async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) {
+      return res
+        .status(401)
+        .json({ isDeactivated: false, message: "No token provided" });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded._id).select("isDeactivated");
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ isDeactivated: false, message: "User not found" });
+    }
+
+    return res.json({ isDeactivated: user.isDeactivated });
+  } catch (error) {
+    return res
+      .status(400)
+      .json({ isDeactivated: false, message: "Invalid or expired token" });
+  }
 });
 
 module.exports = authRouter;
