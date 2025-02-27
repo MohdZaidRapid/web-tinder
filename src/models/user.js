@@ -106,6 +106,7 @@ const userSchema = new mongoose.Schema(
     deactivatedAt: {
       type: Date,
     },
+    savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
     token: { type: String, default: null }, // Store token
   },
 
