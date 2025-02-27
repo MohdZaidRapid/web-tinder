@@ -3,7 +3,7 @@ const { Chat } = require("../models/chat");
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequestModel = require("../models/connectionRequest");
 const User = require("../models/user");
-const BlockUser = require("../models/blockUser");
+const BlockUser = require("../models/blockuser");
 
 const chatRouter = express.Router();
 

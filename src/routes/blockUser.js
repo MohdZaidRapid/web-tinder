@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const express = require("express");
-const BlockUserModel = require("../models/blockUser");
+const BlockUserModel = require("../models/blockuser");
 const User = require("../models/user");
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequestModel = require("../models/connectionRequest");
