@@ -1,5 +1,5 @@
 const User = require("../models/user");
-const BlockUserModel = require("../models/blockUser");
+const BlockUserModel = require("../models/blockuser");
 
 const isUserBlocked = async (req, res, next) => {
   try {

@@ -18,6 +18,7 @@ const blockUserSchema = new mongoose.Schema({
   },
 });
 
-const BlockUser = new mongoose.model("BlockUser", blockUserSchema);
+const BlockUser =
+  mongoose.models.BlockUser || new mongoose.model("BlockUser", blockUserSchema);
 
 module.exports = BlockUser;
