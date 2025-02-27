@@ -3,7 +3,7 @@ const userRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connectionRequest");
 const User = require("../models/user");
-const BlockUserModel = require("../models/blockUser");
+const BlockUserModel = require("../models/blockuser");
 
 const USER_SAVE = "firstName lastName photoUrl age gender about skills role";
 // Get all the pending connection request for the loggedIn user
