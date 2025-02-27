@@ -12,7 +12,7 @@ app.use(
   cors({
     origin: ["https://funtop.netlify.app"], // Allow only your frontend domain
     credentials: true, // Allow cookies & authentication headers
-    methods: ["GET", "POST", "PUT", "DELETE"], // Define allowed methods
+    methods: ["GET", "POST", "PUT", "DELETE","PATCH"], // Define allowed methods
     allowedHeaders: ["Content-Type", "Authorization"], // Define allowed headers
   })
 );
