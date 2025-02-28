@@ -8,36 +8,6 @@ const { userAuth } = require("../middlewares/auth");
 const authRouter = express.Router();
 
 // Signup Route
-authRouter.post("/signup", async (req, res) => {
-  const { firstName, lastName, emailId, password } = req.body;
-  try {
-    validateSignupData(req);
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const user = new User({
-      firstName,
-      lastName,
-      emailId,
-      password: passwordHash,
-    });
-
-    const savedUser = await user.save();
-    const token = await savedUser.getJWT();
-
-    res.cookie("token", token, {
-      expires: new Date(Date.now() + 8 * 3600000),
-      httpOnly: true,
-    });
-
-    res
-      .status(201)
-      .json({ message: "User added successfully", data: savedUser });
-  } catch (error) {
-    res.status(500).send("ERROR: " + error.message);
-  }
-});
-
-// Login Route
 authRouter.post("/login", async (req, res) => {
   try {
     const { emailId, password } = req.body;
@@ -59,6 +29,8 @@ authRouter.post("/login", async (req, res) => {
       res.cookie("token", token, {
         expires: new Date(Date.now() + 8 * 3600000),
         httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // Enable secure cookies in production
+        sameSite: "none", // Required for cross-origin cookies
       });
 
       res.json({ message: "Login successful!", user });
@@ -67,6 +39,38 @@ authRouter.post("/login", async (req, res) => {
     }
   } catch (err) {
     res.status(400).send(err.message);
+  }
+});
+
+// Signup Route
+authRouter.post("/signup", async (req, res) => {
+  const { firstName, lastName, emailId, password } = req.body;
+  try {
+    validateSignupData(req);
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+    });
+
+    const savedUser = await user.save();
+    const token = await savedUser.getJWT();
+
+    res.cookie("token", token, {
+      expires: new Date(Date.now() + 8 * 3600000),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "none",
+    });
+
+    res
+      .status(201)
+      .json({ message: "User added successfully", data: savedUser });
+  } catch (error) {
+    res.status(500).send("ERROR: " + error.message);
   }
 });
 

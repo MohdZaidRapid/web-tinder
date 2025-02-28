@@ -10,9 +10,9 @@ require("dotenv").config();
 
 app.use(
   cors({
-    origin: ["https://funtop.netlify.app"], // Allow only your frontend domain
+    origin: ["https://funtop.netlify.app", "http://localhost:5173"], // Allow only your frontend domain
     credentials: true, // Allow cookies & authentication headers
-    methods: ["GET", "POST", "PUT", "DELETE","PATCH"], // Define allowed methods
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Define allowed methods
     allowedHeaders: ["Content-Type", "Authorization"], // Define allowed headers
   })
 );
