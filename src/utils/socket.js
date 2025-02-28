@@ -13,7 +13,9 @@ const getSecretRoomId = (targetUserId, userId) => {
 const initializeSocket = (server) => {
   const io = socket(server, {
     cors: {
-      origin: ["http://localhost:5173", "https://funtop.netlify.app"],
+      origin: ["http://localhost:5173", "https://funtop.netlify.app"], // Allow both local and production frontend
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      credentials: true, // Enable credentials (important for auth and cookies)
     },
   });
 
