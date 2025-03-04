@@ -13,7 +13,6 @@ app.use(
     origin: ["https://funtop.netlify.app", "http://localhost:5173"], // Allow only your frontend domain
     credentials: true, // Allow cookies & authentication headers
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Define allowed methods
-    allowedHeaders: ["Content-Type", "Authorization"], // Define allowed headers
   })
 );
 app.use(express.json());
