@@ -1,12 +1,24 @@
 const mongoose = require("mongoose");
 
+const replySchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    text: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+const commentSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  text: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  replies: [replySchema], // Replies array
+});
+
 const postSchema = new mongoose.Schema(
   {
-    content: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    content: { type: String, required: true, trim: true },
     imageUrl: {
       type: String,
       validate(value) {
@@ -25,18 +37,12 @@ const postSchema = new mongoose.Schema(
       enum: ["public", "friends", "private"],
       default: "public",
     },
-    hashtags: [{ type: String }], // For searching and trends
-    mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Tagging users
+    hashtags: [{ type: String }],
+    mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    comments: [
-      {
-        user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        text: String,
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
-    shares: { type: Number, default: 0 }, // Number of times shared
-    parentPost: { type: mongoose.Schema.Types.ObjectId, ref: "Post" }, // If shared
+    comments: [commentSchema], // Nested comments structure
+    shares: { type: Number, default: 0 },
+    parentPost: { type: mongoose.Schema.Types.ObjectId, ref: "Post" },
     reports: [
       {
         reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

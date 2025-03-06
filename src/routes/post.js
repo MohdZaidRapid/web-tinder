@@ -32,10 +32,9 @@ postRouter.post("/posts", userAuth, async (req, res) => {
 // ✅ Get All Posts
 postRouter.get("/posts", userAuth, async (req, res) => {
   try {
-    const posts = await Post.find().populate(
-      "createdBy",
-      "firstName lastName photoUrl"
-    );
+    const posts = await Post.find()
+      .populate("createdBy", "firstName lastName photoUrl")
+      .sort({ _id: -1 });
     res.json({ data: posts });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -127,20 +126,34 @@ postRouter.post("/posts/:postId/like", userAuth, async (req, res) => {
 // ✅ Add a Comment
 postRouter.post("/posts/:postId/comment", userAuth, async (req, res) => {
   try {
-    const loggedInUser = req.user;
     const { text } = req.body;
+    if (!text)
+      return res.status(400).json({ message: "Comment text is required" });
 
     const post = await Post.findById(req.params.postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
+    if (!post) return res.status(404).json({ message: "Post not found" });
 
-    post.comments.push({ user: loggedInUser._id, text });
+    const newComment = { user: req.user._id, text };
+    post.comments.push(newComment);
     await post.save();
 
-    res.json({ message: "Comment added", data: post });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.json({ message: "Comment added", comment: newComment });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+postRouter.get("/posts/:postId/comment", async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId)
+      .populate("comments.user", "firstName lastName")
+      .populate("comments.replies.user", "firstName lastName");
+
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    res.json({ comments: post.comments });
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -174,7 +187,6 @@ postRouter.get("/posts/trending", userAuth, async (req, res) => {
       { $unwind: "$hashtags" },
       { $group: { _id: "$hashtags", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
-      { $limit: 5 },
     ]);
 
     res.json({ data: trendingHashtags });
@@ -316,6 +328,49 @@ postRouter.get("/posts/feed", userAuth, async (req, res) => {
     ]);
 
     res.json({ data: posts });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+postRouter.post(
+  "/posts/:postId/comment/:commentId/reply",
+  userAuth,
+  async (req, res) => {
+    try {
+      const { text } = req.body;
+      if (!text)
+        return res.status(400).json({ message: "Reply text is required" });
+
+      const post = await Post.findById(req.params.postId);
+      if (!post) return res.status(404).json({ message: "Post not found" });
+
+      const comment = post.comments.id(req.params.commentId);
+      if (!comment)
+        return res.status(404).json({ message: "Comment not found" });
+
+      const newReply = { user: req.user._id, text };
+      comment.replies.push(newReply);
+      await post.save();
+
+      res.json({ message: "Reply added", reply: newReply });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  }
+);
+
+// ✅ Get a Post with Comments and Replies
+postRouter.get("/posts/:postId", userAuth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId)
+      .populate("createdBy", "firstName lastName photoUrl")
+      .populate("comments.user", "firstName lastName photoUrl")
+      .populate("comments.replies.user", "firstName lastName photoUrl");
+
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    res.json({ data: post });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
