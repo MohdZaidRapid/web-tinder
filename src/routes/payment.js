@@ -25,7 +25,7 @@ paymentRouter.post("/payment/create", userAuth, async (req, res) => {
       },
     });
     //   Save  it  in my database
-    console.log(order);
+    
     // Return back on order details to frontend
     const payment = new Payment({
       userId: req.user._id,
@@ -68,14 +68,14 @@ paymentRouter.post("/payment/webhook", async (req, res) => {
 
     payment.status = paymentDetails.status;
     await payment.save();
-    console.log("payment saved");
+   
     // Update user as premium
     const user = await User.findOne({ _id: payment.userId });
     user.isPremium = true;
     user.membershipType = payment.notes.membershipType;
 
     await user.save();
-    console.log("users saved");
+    
 
     // return success repsonse to razorpay
 
