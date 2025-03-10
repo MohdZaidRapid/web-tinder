@@ -5,7 +5,7 @@ const isUserBlocked = async (req, res, next) => {
   try {
     const blockUserId = req.params.blockUserId || req.params.toUserId; // The user to be blocked
     const user = req.user; // Authenticated user performing the action
-    console.log("calliing", blockUserId, req.user._id);
+    
 
     // Check if the user to be blocked exists
     const userExists = await User.findById(blockUserId);
