@@ -9,7 +9,7 @@ const postRouter = express.Router();
 // ✅ Create a Post
 postRouter.post("/posts", userAuth, async (req, res) => {
   try {
-    const { content, imageUrl } = req.body;
+    const { content, imageUrl, price, isForSale } = req.body;
     const loggedInUser = req.user;
 
     if (!content) {
@@ -20,10 +20,104 @@ postRouter.post("/posts", userAuth, async (req, res) => {
       content,
       imageUrl,
       createdBy: loggedInUser._id,
+      price: isForSale ? price : null, // Set price only if for sale
+      isForSale: isForSale || false, // Default false
+      currentOwner: loggedInUser._id, // Owner is creator initially
     });
 
     await post.save();
     res.status(201).json({ message: "Post created successfully", data: post });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+postRouter.get("/posts/mine", userAuth, async (req, res) => {
+  try {
+    const loggedInUser = req.user;
+
+    const posts = await Post.find({
+      currentOwner: loggedInUser._id.toString(),
+    });
+    res
+      .status(200)
+      .json({ message: "Posts fetched successfully", data: posts });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+postRouter.post("/posts/:postId/buy", userAuth, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const loggedInUser = req.user;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (!post.isForSale) {
+      return res.status(400).json({ message: "This post is not for sale" });
+    }
+
+    if (post.currentOwner.toString() === loggedInUser._id.toString()) {
+      return res.status(400).json({ message: "You already own this post" });
+    }
+
+    // Transfer ownership
+    post.previousOwners.push(post.currentOwner);
+    post.currentOwner = loggedInUser._id.toString();
+    post.isForSale = false; // Mark as sold
+    await post.save();
+
+    res
+      .status(200)
+      .json({ message: "Post purchased successfully", data: post });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+postRouter.put("/posts/:postId/sell", userAuth, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { price } = req.body;
+    const loggedInUser = req.user;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (post.currentOwner.toString() !== loggedInUser._id.toString()) {
+      return res.status(403).json({
+        message: "Unauthorized: Only the owner can modify this post",
+      });
+    }
+
+    // Allow marking as sold without a price
+    if (price !== undefined) {
+      if (price <= 0) {
+        post.isForSale = false;
+        post.price = 0; // Marking as sold
+      } else {
+        post.isForSale = true;
+        post.price = price;
+      }
+    } else {
+      // If no price is provided, mark as sold
+      post.isForSale = false;
+    }
+
+    await post.save();
+
+    res.status(200).json({
+      message: post.isForSale
+        ? "Post is now available for sale"
+        : "Post marked as sold",
+      data: post,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -34,6 +128,7 @@ postRouter.get("/posts", userAuth, async (req, res) => {
   try {
     const posts = await Post.find()
       .populate("createdBy", "firstName lastName photoUrl")
+      .populate("currentOwner", "firstName lastName photoUrl")
       .sort({ _id: -1 });
     res.json({ data: posts });
   } catch (err) {
@@ -365,9 +460,9 @@ postRouter.get("/posts/:postId", userAuth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId)
       .populate("createdBy", "firstName lastName photoUrl")
+      .populate("currentOwner", "firstName lastName photoUrl") // Populate the new owner
       .populate("comments.user", "firstName lastName photoUrl")
       .populate("comments.replies.user", "firstName lastName photoUrl");
-
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     res.json({ data: post });

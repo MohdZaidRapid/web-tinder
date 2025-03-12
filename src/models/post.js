@@ -49,6 +49,12 @@ const postSchema = new mongoose.Schema(
         reason: String,
       },
     ],
+
+    // ✅ Post Buying Features
+    price: { type: Number, required: false }, // Price of post (only if for sale)
+    isForSale: { type: Boolean, default: false }, // Flag to check if post is buyable
+    currentOwner: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Owner of the post
+    previousOwners: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Past owners
   },
   { timestamps: true }
 );
