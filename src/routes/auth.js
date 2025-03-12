@@ -28,9 +28,9 @@ authRouter.post("/login", async (req, res) => {
 
       res.cookie("token", token, {
         expires: new Date(Date.now() + 8 * 3600000),
-        // httpOnly: true,
-        // secure: process.env.NODE_ENV === "production", // Enable secure cookies in production
-        // sameSite: "none", // Required for cross-origin cookies
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // Enable secure cookies in production
+        sameSite: "none", // Required for cross-origin cookies
       });
 
       res.json({ message: "Login successful!", user });
@@ -61,9 +61,9 @@ authRouter.post("/signup", async (req, res) => {
 
     res.cookie("token", token, {
       expires: new Date(Date.now() + 8 * 3600000),
-      // httpOnly: true,
-      // secure: process.env.NODE_ENV === "production",
-      // sameSite: "none",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "none",
     });
 
     res
