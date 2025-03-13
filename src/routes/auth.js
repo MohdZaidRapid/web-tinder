@@ -77,20 +77,25 @@ authRouter.post("/signup", async (req, res) => {
 // Logout Route
 authRouter.post("/logout", async (req, res) => {
   try {
-    const token = req.cookies.token;
-    if (!token) return res.status(400).send("No active session found");
+    const token = req.cookies?.token; // Ensure token is accessed safely
+
+    if (!token) {
+      return res.status(200).json({ message: "Already logged out" }); // Change 400 to 200
+    }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded._id);
 
     if (user) {
-      user.token = null;
+      user.token = null; // Remove stored token
       await user.save();
     }
 
-    res.clearCookie("token").send("Logged out successfully");
+    res.clearCookie("token", { httpOnly: true, sameSite: "strict" });
+    return res.status(200).json({ message: "Logged out successfully" });
   } catch (err) {
-    res.status(400).send("Error logging out");
+    console.error("Logout error:", err);
+    return res.status(500).json({ message: "Error logging out" });
   }
 });
 
