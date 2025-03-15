@@ -30,6 +30,7 @@ const blockUserRouter = require("./routes/blockUser");
 const adminRouter = require("./routes/admin");
 const postRouter = require("./routes/post");
 const encryptedRouter = require("./routes/encrypted");
+const { chatRoomRouter } = require("./routes/chatRoom");
 
 app.use("/", authRouter);
 app.use("/", profileRouter);
@@ -41,6 +42,7 @@ app.use("/", blockUserRouter);
 app.use("/", adminRouter);
 app.use("/", postRouter);
 app.use("/private", encryptedRouter);
+app.use("/api/chatrooms", chatRoomRouter);
 
 const server = http.createServer(app);
 

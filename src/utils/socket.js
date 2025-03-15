@@ -2,6 +2,7 @@ const socket = require("socket.io");
 const crypto = require("crypto");
 const { Chat } = require("../models/chat");
 const ConnectionRequestModel = require("../models/connectionRequest");
+const ChatRoom = require("../models/chatRoom");
 
 const getSecretRoomId = (targetUserId, userId) => {
   return crypto
@@ -20,12 +21,12 @@ const initializeSocket = (server) => {
   });
 
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+   
 
-    // ======== Chat Functionality ========
+    // ======== Private Chat Functionality ========
     socket.on("joinChat", ({ firstName, userId, targetUserId }) => {
       const roomId = getSecretRoomId(userId, targetUserId);
-      console.log(firstName + " Joining Room: " + roomId);
+     
       socket.join(roomId);
     });
 
@@ -33,9 +34,8 @@ const initializeSocket = (server) => {
       "sendMessage",
       async ({ firstName, lastName, userId, targetUserId, text }) => {
         const roomId = getSecretRoomId(userId, targetUserId);
-        console.log(firstName + " " + text);
+      
 
-        // Save message to the database
         try {
           let chat = await Chat.findOne({
             participants: { $all: [userId, targetUserId] },
@@ -48,54 +48,102 @@ const initializeSocket = (server) => {
             });
           }
 
-          chat.messages.push({
-            senderId: userId,
-            text,
-          });
-
+          chat.messages.push({ senderId: userId, text });
           await chat.save();
         } catch (err) {
           console.log(err);
         }
 
-        io.to(roomId).emit("messageReceived", {
-          firstName,
-          text,
-          lastName,
-        });
+        io.to(roomId).emit("messageReceived", { firstName, text, lastName });
       }
     );
 
-    // ======== 🚀 Video Call Functionality 🚀 ========
+    // ======== Group Chat (Chat Room) Functionality ========
+    socket.on("joinRoom", async ({ userId, roomId }) => {
+      try {
+        if (!userId || !roomId) {
+          console.error("Invalid joinRoom request: Missing userId or roomId");
+          return;
+        }
 
-    // 1️⃣ Initiate Call
+        const chatRoom = await ChatRoom.findById(roomId);
+        if (!chatRoom) {
+          console.error(`Chat room ${roomId} not found`);
+          return;
+        }
+
+        if (!chatRoom.users.includes(userId)) {
+          chatRoom.users.push(userId);
+          await chatRoom.save();
+        }
+
+        socket.join(roomId);
+      
+
+        io.to(roomId).emit("userJoined", {
+          userId,
+          message: "A new user has joined the chat!",
+        });
+      } catch (error) {
+        console.error("Error joining chat room:", error);
+      }
+    });
+
+    socket.on("sendRoomMessage", async ({ userId, roomId, text }) => {
+      
+      try {
+        if (!userId || !roomId || !text) {
+          console.error("Invalid sendRoomMessage request: Missing fields");
+          return;
+        }
+
+        const chatRoom = await ChatRoom.findById(roomId);
+        if (!chatRoom) {
+          console.error(`Chat room ${roomId} not found`);
+          return;
+        }
+
+        // Ensure user is a member of the chat room
+        if (!chatRoom.users.includes(userId)) {
+          console.error(`User ${userId} is not a member of room ${roomId}`);
+          return;
+        }
+
+        const message = { senderId: userId, text, timestamp: new Date() };
+        chatRoom.messages.push(message);
+        await chatRoom.save();
+
+        io.to(roomId).emit("roomMessageReceived", message);
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
+    });
+
+    // ======== Video Call Functionality ========
     socket.on("callUser", ({ fromUserId, toUserId, offer }) => {
       const roomId = getSecretRoomId(fromUserId, toUserId);
       console.log(`📞 Call initiated from ${fromUserId} to ${toUserId}`);
       io.to(roomId).emit("incomingCall", { fromUserId, offer });
     });
 
-    // 2️⃣ Answer Call
     socket.on("answerCall", ({ fromUserId, toUserId, answer }) => {
       const roomId = getSecretRoomId(fromUserId, toUserId);
       console.log(`✅ Call answered by ${fromUserId}`);
       io.to(roomId).emit("callAnswered", { answer });
     });
 
-    // 3️⃣ Exchange ICE Candidates
     socket.on("iceCandidate", ({ fromUserId, toUserId, candidate }) => {
       const roomId = getSecretRoomId(fromUserId, toUserId);
       io.to(roomId).emit("iceCandidate", { candidate });
     });
 
-    // 4️⃣ End Call
     socket.on("endCall", ({ fromUserId, toUserId }) => {
       const roomId = getSecretRoomId(fromUserId, toUserId);
       console.log(`❌ Call ended between ${fromUserId} and ${toUserId}`);
       io.to(roomId).emit("callEnded");
     });
 
-    // Disconnect Handling
+    // ======== Disconnect Handling ========
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
     });
