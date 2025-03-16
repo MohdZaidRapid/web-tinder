@@ -5,6 +5,8 @@ const ConnectionRequestModel = require("../models/connectionRequest");
 const ChatRoom = require("../models/chatRoom");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcrypt");
+const rooms = {};
 
 const getSecretRoomId = (targetUserId, userId) => {
   return crypto
@@ -58,7 +60,7 @@ const initializeSocket = (server) => {
     );
 
     // ======== Group Chat (Chat Room) Functionality ========
-    socket.on("joinRoom", async ({ userId, roomId }) => {
+    socket.on("joinRoom", async ({ userId, roomId, password }) => {
       try {
         if (!userId || !roomId) {
           console.error("Invalid joinRoom request: Missing userId or roomId");
@@ -71,13 +73,33 @@ const initializeSocket = (server) => {
           return;
         }
 
+        // Check if the user is already in the room
+        if (rooms[socket.id] && rooms[socket.id].includes(roomId)) {
+          socket.join(roomId);
+          socket.emit("joinedRoom", roomId);
+          return;
+        }
+
+        // Validate password only for first-time joiners
         if (!chatRoom.users.includes(userId)) {
+          const isPasswordValid = await bcrypt.compare(
+            password,
+            chatRoom.password
+          );
+          if (!isPasswordValid) {
+            socket.emit("error", "Incorrect password");
+            return;
+          }
+
           chatRoom.users.push(userId);
           await chatRoom.save();
         }
 
-        socket.join(roomId);
+        // Store session so rejoining doesn’t require a password
+        if (!rooms[socket.id]) rooms[socket.id] = [];
+        rooms[socket.id].push(roomId);
 
+        socket.join(roomId);
         io.to(roomId).emit("userJoined", {
           userId,
           message: "A new user has joined the chat!",
@@ -138,6 +160,17 @@ const initializeSocket = (server) => {
       } catch (error) {
         console.error("Error sending message:", error);
       }
+    });
+    
+    socket.on("leaveRoom", ({ userId, roomId }) => {
+      if (rooms[socket.id]) {
+        rooms[socket.id] = rooms[socket.id].filter((id) => id !== roomId);
+      }
+      socket.leave(roomId);
+      io.to(roomId).emit("userLeft", {
+        userId,
+        message: "User has left the chat.",
+      });
     });
 
     // ======== Video Call Functionality ========

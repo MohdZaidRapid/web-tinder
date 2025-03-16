@@ -6,6 +6,7 @@ const path = require("path");
 const { userAuth } = require("../middlewares/auth");
 const adminRole = require("../middlewares/admin");
 const upload = require("../middlewares/uploads");
+const bcrypt = require("bcrypt");
 
 const chatRoomRouter = express.Router();
 
@@ -25,6 +26,7 @@ const chatRoomRouter = express.Router();
 // const upload = multer({ storage });
 
 // Create a chat room (Admin only)
+
 chatRoomRouter.post("/create", userAuth, adminRole, async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -33,16 +35,49 @@ chatRoomRouter.post("/create", userAuth, adminRole, async (req, res) => {
         .json({ error: "Only admins can create chat rooms" });
     }
 
-    const { name } = req.body;
+    const { name, password } = req.body;
+
     const existingRoom = await ChatRoom.findOne({ name });
-    console.log(existingRoom);
+
     if (existingRoom) {
       return res.status(400).json({ error: "Chat room already exists" });
     }
 
-    const chatRoom = new ChatRoom({ name, users: [], messages: [] });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const chatRoom = new ChatRoom({
+      name,
+      password: hashedPassword,
+      users: [],
+      messages: [],
+    });
+
     await chatRoom.save();
-    res.status(201).json(chatRoom);
+    res
+      .status(201)
+      .json({ message: "Chat room created successfully", chatRoom });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Leave room
+chatRoomRouter.post("/leave/:roomId", userAuth, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user._id;
+
+    const chatRoom = await ChatRoom.findById(roomId);
+    if (!chatRoom) {
+      return res.status(404).json({ error: "Chat room not found" });
+    }
+
+    // Remove user from the room
+    chatRoom.users = chatRoom.users.filter(
+      (id) => id.toString() !== userId.toString()
+    );
+    await chatRoom.save();
+
+    res.json({ message: "Left chat room successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -63,17 +98,27 @@ chatRoomRouter.get("/", userAuth, async (req, res) => {
 chatRoomRouter.post("/join/:roomId", userAuth, async (req, res) => {
   try {
     const { roomId } = req.params;
+    const { password } = req.body;
     const userId = req.user._id;
-
     const chatRoom = await ChatRoom.findById(roomId);
     if (!chatRoom) {
       return res.status(404).json({ error: "Chat room not found" });
     }
 
-    if (!chatRoom.users.includes(userId)) {
-      chatRoom.users.push(userId);
-      await chatRoom.save();
+    // Check if user already joined
+    if (chatRoom.users.includes(userId)) {
+      return res.json({ message: "Already joined the room", chatRoom });
     }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, chatRoom.password);
+    console.log(isPasswordValid, "isPasswordValid");
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Incorrect password" });
+    }
+
+    chatRoom.users.push(userId);
+    await chatRoom.save();
 
     res.json({ message: "Joined chat room successfully", chatRoom });
   } catch (error) {
