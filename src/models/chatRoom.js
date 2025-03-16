@@ -7,6 +7,8 @@ const chatRoomSchema = new mongoose.Schema({
     {
       senderId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       text: String,
+      fileUrl: String, // Store the file path
+      fileType: String, // Store file type (image, pdf, etc.)
       timestamp: { type: Date, default: Date.now },
     },
   ],

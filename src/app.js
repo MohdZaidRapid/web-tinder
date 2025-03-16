@@ -18,6 +18,7 @@ app.use(
 app.use(express.json());
 // read json object convert that json to js javascript
 app.use(cookieParser());
+const path = require("path");
 
 const authRouter = require("./routes/auth");
 const profileRouter = require("./routes/profile");
@@ -32,6 +33,7 @@ const postRouter = require("./routes/post");
 const encryptedRouter = require("./routes/encrypted");
 const { chatRoomRouter } = require("./routes/chatRoom");
 
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/", authRouter);
 app.use("/", profileRouter);
 app.use("/", requestRouter);

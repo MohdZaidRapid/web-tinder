@@ -3,6 +3,8 @@ const crypto = require("crypto");
 const { Chat } = require("../models/chat");
 const ConnectionRequestModel = require("../models/connectionRequest");
 const ChatRoom = require("../models/chatRoom");
+const path = require("path");
+const fs = require("fs");
 
 const getSecretRoomId = (targetUserId, userId) => {
   return crypto
@@ -21,12 +23,10 @@ const initializeSocket = (server) => {
   });
 
   io.on("connection", (socket) => {
-   
-
     // ======== Private Chat Functionality ========
     socket.on("joinChat", ({ firstName, userId, targetUserId }) => {
       const roomId = getSecretRoomId(userId, targetUserId);
-     
+
       socket.join(roomId);
     });
 
@@ -34,7 +34,6 @@ const initializeSocket = (server) => {
       "sendMessage",
       async ({ firstName, lastName, userId, targetUserId, text }) => {
         const roomId = getSecretRoomId(userId, targetUserId);
-      
 
         try {
           let chat = await Chat.findOne({
@@ -78,7 +77,6 @@ const initializeSocket = (server) => {
         }
 
         socket.join(roomId);
-      
 
         io.to(roomId).emit("userJoined", {
           userId,
@@ -89,10 +87,9 @@ const initializeSocket = (server) => {
       }
     });
 
-    socket.on("sendRoomMessage", async ({ userId, roomId, text }) => {
-      
+    socket.on("sendRoomMessage", async ({ userId, roomId, text, file }) => {
       try {
-        if (!userId || !roomId || !text) {
+        if (!userId || !roomId || (!text && !file)) {
           console.error("Invalid sendRoomMessage request: Missing fields");
           return;
         }
@@ -103,13 +100,37 @@ const initializeSocket = (server) => {
           return;
         }
 
-        // Ensure user is a member of the chat room
         if (!chatRoom.users.includes(userId)) {
           console.error(`User ${userId} is not a member of room ${roomId}`);
           return;
         }
 
-        const message = { senderId: userId, text, timestamp: new Date() };
+        let fileUrl = null;
+        let fileType = null;
+
+        if (file && file.data && file.name && file.type) {
+          const uploadDir = path.join(__dirname, "../uploads");
+          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+          const fileName = `${Date.now()}-${file.name}`;
+          const filePath = path.join(uploadDir, fileName);
+
+          // Convert base64 string back to a binary buffer
+          const buffer = Buffer.from(file.data, "base64");
+          fs.writeFileSync(filePath, buffer);
+
+          fileUrl = `/uploads/${fileName}`;
+          fileType = file.type;
+        }
+
+        const message = {
+          senderId: userId,
+          text: text || "",
+          fileUrl,
+          fileType,
+          timestamp: new Date(),
+        };
+
         chatRoom.messages.push(message);
         await chatRoom.save();
 
