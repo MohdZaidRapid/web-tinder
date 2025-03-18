@@ -86,8 +86,9 @@ chatRoomRouter.post("/leave/:roomId", userAuth, async (req, res) => {
 // 🔹 Get All Chat Rooms
 chatRoomRouter.get("/", userAuth, async (req, res) => {
   try {
-    const chatRooms = await ChatRoom.find().select("name _id");
-    console.log(chatRooms);
+    // Include the 'users' field in the response so that the frontend can check membership.
+    const chatRooms = await ChatRoom.find().select("name _id users");
+
     res.json(chatRooms);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -101,23 +102,30 @@ chatRoomRouter.post("/join/:roomId", userAuth, async (req, res) => {
     const { password } = req.body;
     const userId = req.user._id;
     const chatRoom = await ChatRoom.findById(roomId);
+
     if (!chatRoom) {
       return res.status(404).json({ error: "Chat room not found" });
     }
 
-    // Check if user already joined
+    // Ensure chatRoom.users is defined (default to empty array if not)
+    if (!chatRoom.users) {
+      chatRoom.users = [];
+    }
+
+    // If the user has already joined, return the room info immediately
     if (chatRoom.users.includes(userId)) {
       return res.json({ message: "Already joined the room", chatRoom });
     }
 
-    // Verify password
+    // Verify password using bcrypt
     const isPasswordValid = await bcrypt.compare(password, chatRoom.password);
-    console.log(isPasswordValid, "isPasswordValid");
     if (!isPasswordValid) {
       return res.status(401).json({ error: "Incorrect password" });
     }
 
+    // Add the user to the room and save
     chatRoom.users.push(userId);
+
     await chatRoom.save();
 
     res.json({ message: "Joined chat room successfully", chatRoom });
